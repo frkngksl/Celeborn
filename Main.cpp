@@ -68,6 +68,20 @@ int main(char *argv,int argc) {
 		PDWORD addressArray = (PDWORD) (imageBaseAddressOfNTDLL + imageExportDirectory->AddressOfFunctions);
 		PCHAR functionName;
 		PBYTE functionAddr;
+		PIMAGE_SECTION_HEADER textSection = (PIMAGE_SECTION_HEADER) (((PBYTE)imageNTHeaders) + sizeof(IMAGE_NT_HEADERS));
+		//Change permission of the section
+		for (unsigned int i = 0; i < imageNTHeaders->FileHeader.NumberOfSections; i++) {
+			if (strcmp((const char *)textSection[i].Name,".text") == 0) {
+				std::cout << "[FOUND] Text Section Found" << std::endl;
+				textSection = &textSection[i];
+				break;
+			}
+		}
+
+		DWORD oldProtection = 0;
+		VirtualProtect((LPVOID)((DWORD_PTR)imageBaseAddressOfNTDLL + (DWORD_PTR)textSection->VirtualAddress), textSection->Misc.VirtualSize, PAGE_EXECUTE_READWRITE, &oldProtection);
+
+
 		//Print exported functions
 		for (unsigned int i = 0; i < imageExportDirectory->NumberOfNames; i++) {
 			functionName = (PCHAR)( imageBaseAddressOfNTDLL + nameArray[i]);
@@ -81,6 +95,7 @@ int main(char *argv,int argc) {
 			//std::wcout << functionName << std::endl;
 		}
 
+		VirtualProtect((LPVOID)((DWORD_PTR)imageBaseAddressOfNTDLL + (DWORD_PTR)textSection->VirtualAddress), textSection->Misc.VirtualSize, oldProtection, &oldProtection);
 
 	}
 	else {
