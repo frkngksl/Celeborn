@@ -376,9 +376,6 @@ FORCEINLINE VOID RtlInitUnicodeString(
 
 
 EXTERN_C NTSTATUS ZwProtectVirtualMemoryArbitrary(IN HANDLE ProcessHandle, IN PVOID* BaseAddress, IN SIZE_T* NumberOfBytesToProtect, IN ULONG NewAccessProtection, OUT PULONG OldAccessProtection);
-EXTERN_C NTSTATUS ZwOpenProcessArbitrary(PHANDLE ProcessHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PCLIENT_ID ClientId);
-EXTERN_C NTSTATUS ZwCloseArbitrary(IN HANDLE KeyHandle);
-EXTERN_C NTSTATUS ZwWriteVirtualMemoryArbitrary(HANDLE hProcess, PVOID lpBaseAddress, PVOID lpBuffer, SIZE_T NumberOfBytesToRead, PSIZE_T NumberOfBytesRead);
 EXTERN_C NTSTATUS NtCreateFileArbitrary(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PIO_STATUS_BLOCK IoStatusBlock, PLARGE_INTEGER AllocationSize, ULONG FileAttributes, ULONG ShareAccess, ULONG CreateDisposition, ULONG CreateOptions, PVOID EaBuffer, ULONG EaLength);
 EXTERN_C NTSTATUS NtCreateSectionArbitrary(PHANDLE SectionHandle,ACCESS_MASK DesiredAccess,POBJECT_ATTRIBUTES ObjectAttributes,PLARGE_INTEGER MaximumSize, ULONG SectionPageProtection, ULONG AllocationAttributes,HANDLE FileHandle);
 EXTERN_C NTSTATUS ZwMapViewOfSectionArbitrary(HANDLE SectionHandle, HANDLE ProcessHandle, PVOID* BaseAddress, ULONG_PTR ZeroBits, SIZE_T CommitSize, PLARGE_INTEGER SectionOffset, PSIZE_T ViewSize, SECTION_INHERIT InheritDisposition, ULONG AllocationType, ULONG Win32Protect);

@@ -1,9 +1,9 @@
 ﻿#include <Windows.h>
 #include <winnt.h>
 #include <iostream>
-//#include <winternl.h>
 #include <clocale>
 #include "Structs.h"
+#include <conio.h>
 
 PTEB RtlGetThreadEnvironmentBlock() {
 #if _WIN64
@@ -22,6 +22,7 @@ void printBanner() {
 		"	888          888ooo888  888  888ooo888  888   888 888   888  888      888   888  \n"
 		"	 88b    ooo  888    .o  888  888    .o  888   888 888   888  888      888   888  \n"
 		"	 `Y8bood8P'  `Y8bod8P' o888o `Y8bod8P'  `Y8bod8P' `Y8bod8P' d888b    o888o o888o \n";
+		"                                       by @R0h1rr1m                                    \n";
 	std::cout << banner << std::endl;
 }
 
@@ -33,6 +34,29 @@ int nameException(const char* functionName) {
 		}
 	}
 	return 1;
+}
+
+bool replaceTheContentOfFunction(const PCHAR funcNameForUnhook, PBYTE destinationAddress, PBYTE cleanNTDLLModule) {
+	PBYTE imageBaseAddressOfNTDLL = (PBYTE)cleanNTDLLModule;
+	PIMAGE_DOS_HEADER dosHeader = (PIMAGE_DOS_HEADER)imageBaseAddressOfNTDLL;
+	PIMAGE_NT_HEADERS imageNTHeaders = (PIMAGE_NT_HEADERS)(imageBaseAddressOfNTDLL + dosHeader->e_lfanew);
+	PIMAGE_EXPORT_DIRECTORY imageExportDirectory = (PIMAGE_EXPORT_DIRECTORY)(imageBaseAddressOfNTDLL + imageNTHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
+	PDWORD nameArray = (PDWORD)(imageBaseAddressOfNTDLL + imageExportDirectory->AddressOfNames);
+	PWORD ordinalArray = (PWORD)(imageBaseAddressOfNTDLL + imageExportDirectory->AddressOfNameOrdinals);
+	PDWORD addressArray = (PDWORD)(imageBaseAddressOfNTDLL + imageExportDirectory->AddressOfFunctions);
+	PCHAR functionNameTemp;
+	PBYTE functionAddrTemp;
+	bool fixedOrNot = false;
+	for (unsigned int i = 0; i < imageExportDirectory->NumberOfNames; i++) {
+		functionNameTemp = (PCHAR)(imageBaseAddressOfNTDLL + nameArray[i]);
+		functionAddrTemp = (PBYTE)(imageBaseAddressOfNTDLL + addressArray[ordinalArray[i]]);
+		if (strncmp(functionNameTemp, funcNameForUnhook, strlen(funcNameForUnhook)) == 0) {
+			memcpy(destinationAddress,functionAddrTemp,24);
+			fixedOrNot = (destinationAddress[0] == 0x4C && destinationAddress[1] == 0x8B && destinationAddress[2] == 0xD1 && destinationAddress[3] == 0xB8);
+			break;
+		}
+	}
+	return fixedOrNot;
 }
 
 PVOID loadModuleAsSection(UNICODE_STRING * dllPath) {
@@ -76,6 +100,8 @@ PVOID loadModuleAsSection(UNICODE_STRING * dllPath) {
 	return sectionBaseAddress;
 }
 
+
+
 int main(char *argv,int argc) {
 	printBanner();
 	PTEB pCurrentTeb = RtlGetThreadEnvironmentBlock();
@@ -102,6 +128,7 @@ int main(char *argv,int argc) {
 	if (ntdllModule) {
 		newSectionForNTDLL = loadModuleAsSection(&ntdllModule->FullDllName);
 		PBYTE imageBaseAddressOfNTDLL = (PBYTE) ntdllModule->DllBase;
+		//PBYTE imageBaseAddressOfNTDLL = (PBYTE)newSectionForNTDLL;
 		PIMAGE_DOS_HEADER dosHeader = (PIMAGE_DOS_HEADER)imageBaseAddressOfNTDLL;
 		PIMAGE_NT_HEADERS imageNTHeaders = (PIMAGE_NT_HEADERS)(imageBaseAddressOfNTDLL + dosHeader->e_lfanew);
 		PIMAGE_EXPORT_DIRECTORY imageExportDirectory = (PIMAGE_EXPORT_DIRECTORY)(imageBaseAddressOfNTDLL + imageNTHeaders->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress);
@@ -123,6 +150,7 @@ int main(char *argv,int argc) {
 		ULONG oldProtection = 0;
 		LPVOID lpBaseAddress = imageBaseAddressOfNTDLL + textSection->VirtualAddress;
 		SIZE_T sizeOfSection= textSection->Misc.VirtualSize;
+		bool returnFlag;
 		//VirtualProtect((LPVOID)((DWORD_PTR)imageBaseAddressOfNTDLL + (DWORD_PTR)textSection->VirtualAddress), textSection->Misc.VirtualSize, PAGE_EXECUTE_READWRITE, &oldProtection);
 		NTSTATUS status = ZwProtectVirtualMemoryArbitrary(GetCurrentProcess(), &lpBaseAddress, &sizeOfSection, PAGE_EXECUTE_READWRITE, &oldProtection);
 		if (status != 0) {
@@ -138,6 +166,13 @@ int main(char *argv,int argc) {
 				//std::cout << "bulundu" << functionName << std::endl;
 				if (!(functionAddr[0] == 0x4C && functionAddr[1] == 0x8B && functionAddr[2] == 0xD1 && functionAddr[3] == 0xB8) && nameException(functionName)) {
 					std::cout << "[WARNING] Potential Hook : " << functionName << std::endl;
+					returnFlag = replaceTheContentOfFunction(functionName, functionAddr,(PBYTE) newSectionForNTDLL);
+					if (returnFlag) {
+						std::cout << "[SUCCESS] Unhook success for " << functionName << std::endl;
+					}
+					else {
+						std::cout << "[FAILED] Unhook failed for " << functionName << std::endl;
+					}
 				}
 			}
 			//std::wcout << functionName << std::endl;
@@ -152,7 +187,7 @@ int main(char *argv,int argc) {
 	else {
 		std::cout << "[ERROR] Cannot Find NTDLL.dll" << std::endl;
 	}
-	int x;
-	std::cin >> x;
+	std::cout << "Press a key to continue ..." << std::endl;
+	_getch();
 	return 0;
 }

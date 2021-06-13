@@ -6,28 +6,6 @@
 			ret
 	ZwProtectVirtualMemoryArbitrary endp
 
-	ZwOpenProcessArbitrary proc
-			mov r10, rcx
-			mov eax, 26h
-			syscall
-			ret
-	ZwOpenProcessArbitrary endp
-	
-	ZwCloseArbitrary proc
-			mov r10, rcx
-			mov eax, 0Fh
-			syscall
-			ret
-	ZwCloseArbitrary endp
-
-	ZwWriteVirtualMemoryArbitrary proc
-			mov r10, rcx
-			mov eax, 3Ah
-			syscall
-			ret
-	ZwWriteVirtualMemoryArbitrary endp
-
-	; Why I can't see ZwCreateFile ?
 	NtCreateFileArbitrary proc
 		mov r10, rcx
 		mov eax, 55h
