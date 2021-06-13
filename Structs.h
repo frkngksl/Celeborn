@@ -335,3 +335,50 @@ typedef struct _INITIAL_TEB {
 	PVOID                StackCommitMax;
 	PVOID                StackReserved;
 } INITIAL_TEB, * PINITIAL_TEB;
+
+typedef struct _IO_STATUS_BLOCK
+{
+	union
+	{
+		LONG Status;
+		PVOID Pointer;
+	};
+	ULONG Information;
+} IO_STATUS_BLOCK, * PIO_STATUS_BLOCK;
+
+
+#define InitializeObjectAttributes( i, o, a, r, s ) {    \
+      (i)->Length = sizeof( OBJECT_ATTRIBUTES );         \
+      (i)->RootDirectory = r;                            \
+      (i)->Attributes = a;                               \
+      (i)->ObjectName = o;                               \
+      (i)->SecurityDescriptor = s;                       \
+      (i)->SecurityQualityOfService = NULL;              \
+   }
+
+typedef enum _SECTION_INHERIT {
+	ViewShare = 1,
+	ViewUnmap = 2
+} SECTION_INHERIT, * PSECTION_INHERIT;
+
+FORCEINLINE VOID RtlInitUnicodeString(
+	_Out_ PUNICODE_STRING DestinationString,
+	_In_opt_ PWSTR SourceString
+)
+{
+	if (SourceString)
+		DestinationString->MaximumLength = (DestinationString->Length = (USHORT)(wcslen(SourceString) * sizeof(WCHAR))) + sizeof(WCHAR);
+	else
+		DestinationString->MaximumLength = DestinationString->Length = 0;
+
+	DestinationString->Buffer = SourceString;
+}
+
+
+EXTERN_C NTSTATUS ZwProtectVirtualMemoryArbitrary(IN HANDLE ProcessHandle, IN PVOID* BaseAddress, IN SIZE_T* NumberOfBytesToProtect, IN ULONG NewAccessProtection, OUT PULONG OldAccessProtection);
+EXTERN_C NTSTATUS ZwOpenProcessArbitrary(PHANDLE ProcessHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PCLIENT_ID ClientId);
+EXTERN_C NTSTATUS ZwCloseArbitrary(IN HANDLE KeyHandle);
+EXTERN_C NTSTATUS ZwWriteVirtualMemoryArbitrary(HANDLE hProcess, PVOID lpBaseAddress, PVOID lpBuffer, SIZE_T NumberOfBytesToRead, PSIZE_T NumberOfBytesRead);
+EXTERN_C NTSTATUS NtCreateFileArbitrary(PHANDLE FileHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PIO_STATUS_BLOCK IoStatusBlock, PLARGE_INTEGER AllocationSize, ULONG FileAttributes, ULONG ShareAccess, ULONG CreateDisposition, ULONG CreateOptions, PVOID EaBuffer, ULONG EaLength);
+EXTERN_C NTSTATUS NtCreateSectionArbitrary(PHANDLE SectionHandle,ACCESS_MASK DesiredAccess,POBJECT_ATTRIBUTES ObjectAttributes,PLARGE_INTEGER MaximumSize, ULONG SectionPageProtection, ULONG AllocationAttributes,HANDLE FileHandle);
+EXTERN_C NTSTATUS ZwMapViewOfSectionArbitrary(HANDLE SectionHandle, HANDLE ProcessHandle, PVOID* BaseAddress, ULONG_PTR ZeroBits, SIZE_T CommitSize, PLARGE_INTEGER SectionOffset, PSIZE_T ViewSize, SECTION_INHERIT InheritDisposition, ULONG AllocationType, ULONG Win32Protect);

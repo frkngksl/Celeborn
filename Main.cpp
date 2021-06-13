@@ -1,6 +1,7 @@
 ﻿#include <Windows.h>
 #include <winnt.h>
 #include <iostream>
+//#include <winternl.h>
 #include <clocale>
 #include "Structs.h"
 
@@ -34,6 +35,46 @@ int nameException(const char* functionName) {
 	return 1;
 }
 
+PVOID loadModuleAsSection(UNICODE_STRING * dllPath) {
+	HANDLE ntdllHandle = NULL;
+	HANDLE hSection = NULL;
+	IO_STATUS_BLOCK IoStatusBlock;
+	ZeroMemory(&IoStatusBlock, sizeof(IoStatusBlock));
+	OBJECT_ATTRIBUTES FileObjectAttributes;
+	PVOID sectionBaseAddress = 0;
+	SIZE_T viewSize = 0;
+	UNICODE_STRING ucFilepath;
+	WCHAR wcFilepath[100] = L"\\??\\\\";
+	wcscat_s(wcFilepath, dllPath->Buffer);
+	RtlInitUnicodeString(&ucFilepath, wcFilepath);
+	InitializeObjectAttributes(&FileObjectAttributes,&ucFilepath, 0x00000040L, NULL, NULL);
+	// Ask 1
+	NTSTATUS status = NtCreateFileArbitrary(&ntdllHandle, FILE_GENERIC_READ, &FileObjectAttributes, &IoStatusBlock, 0,
+		FILE_ATTRIBUTE_NORMAL, FILE_SHARE_READ, 0x1, 0x00000020, NULL, 0);
+
+	if (ntdllHandle == INVALID_HANDLE_VALUE || status != 0) {
+		std::cout << "[ERROR] Cannot open the clean version" << std::endl;
+		exit(1);
+	}
+
+	status = NtCreateSectionArbitrary(&hSection, SECTION_ALL_ACCESS,NULL,0, PAGE_READONLY, SEC_IMAGE,ntdllHandle);
+
+	if (status != 0) {
+		std::cout << "[ERROR] Cannot create a section" << std::endl;
+		exit(1);
+	}
+	status = ZwMapViewOfSectionArbitrary(hSection, GetCurrentProcess(), &sectionBaseAddress, NULL, NULL, NULL, &viewSize, ViewShare, NULL, PAGE_READONLY);
+
+	if (status != 0x40000003){
+		std::cout << "[ERROR] Cannot map the section failed" << std::endl;
+		exit(1);
+	}
+
+	std::cout << "[DONE] New section is created for clean NTDLL.dll at 0x" << std::hex << (ULONG_PTR)sectionBaseAddress << "\n";
+	CloseHandle(hSection);
+	CloseHandle(ntdllHandle);
+	return sectionBaseAddress;
+}
 
 int main(char *argv,int argc) {
 	printBanner();
@@ -41,12 +82,13 @@ int main(char *argv,int argc) {
 	PPEB pCurrentPeb = pCurrentTeb->ProcessEnvironmentBlock;
 	if (!pCurrentPeb || !pCurrentTeb || pCurrentPeb->OSMajorVersion != 0xA)
 		return 0;
-
+	PVOID newSectionForNTDLL;
 	PLDR_DATA_TABLE_ENTRY ntdllModule = NULL;
 	PLIST_ENTRY beginningOfTheList = &pCurrentPeb->LoaderData->InMemoryOrderModuleList;
 	PLIST_ENTRY cursorOfModules = beginningOfTheList->Flink;
 	PLDR_DATA_TABLE_ENTRY currentModule;
 	int count = 0;
+	//ZwOpenProcessArbitrary();
 	while (cursorOfModules != beginningOfTheList) {
 		currentModule = (PLDR_DATA_TABLE_ENTRY) ((PBYTE)cursorOfModules - 0x10);
 		if (wcscmp(currentModule->BaseDllName.Buffer, L"ntdll.dll") == 0) {
@@ -58,7 +100,7 @@ int main(char *argv,int argc) {
 		cursorOfModules = cursorOfModules->Flink;
 	}
 	if (ntdllModule) {
-		std::cout << "[FOUND] NTDLL.dll is loaded at 0x" << ntdllModule << std::endl;
+		newSectionForNTDLL = loadModuleAsSection(&ntdllModule->FullDllName);
 		PBYTE imageBaseAddressOfNTDLL = (PBYTE) ntdllModule->DllBase;
 		PIMAGE_DOS_HEADER dosHeader = (PIMAGE_DOS_HEADER)imageBaseAddressOfNTDLL;
 		PIMAGE_NT_HEADERS imageNTHeaders = (PIMAGE_NT_HEADERS)(imageBaseAddressOfNTDLL + dosHeader->e_lfanew);
@@ -78,9 +120,15 @@ int main(char *argv,int argc) {
 			}
 		}
 
-		DWORD oldProtection = 0;
-		VirtualProtect((LPVOID)((DWORD_PTR)imageBaseAddressOfNTDLL + (DWORD_PTR)textSection->VirtualAddress), textSection->Misc.VirtualSize, PAGE_EXECUTE_READWRITE, &oldProtection);
-
+		ULONG oldProtection = 0;
+		LPVOID lpBaseAddress = imageBaseAddressOfNTDLL + textSection->VirtualAddress;
+		SIZE_T sizeOfSection= textSection->Misc.VirtualSize;
+		//VirtualProtect((LPVOID)((DWORD_PTR)imageBaseAddressOfNTDLL + (DWORD_PTR)textSection->VirtualAddress), textSection->Misc.VirtualSize, PAGE_EXECUTE_READWRITE, &oldProtection);
+		NTSTATUS status = ZwProtectVirtualMemoryArbitrary(GetCurrentProcess(), &lpBaseAddress, &sizeOfSection, PAGE_EXECUTE_READWRITE, &oldProtection);
+		if (status != 0) {
+			std::cout << "[ERROR] Cannot change the permission of Text Section" << std::endl;
+			exit(0);
+		}
 
 		//Print exported functions
 		for (unsigned int i = 0; i < imageExportDirectory->NumberOfNames; i++) {
@@ -95,11 +143,16 @@ int main(char *argv,int argc) {
 			//std::wcout << functionName << std::endl;
 		}
 
-		VirtualProtect((LPVOID)((DWORD_PTR)imageBaseAddressOfNTDLL + (DWORD_PTR)textSection->VirtualAddress), textSection->Misc.VirtualSize, oldProtection, &oldProtection);
-
+		status = ZwProtectVirtualMemoryArbitrary(GetCurrentProcess(), &lpBaseAddress, &sizeOfSection, oldProtection, &oldProtection);
+		if (status != 0) {
+			std::cout << "[ERROR] Cannot restore the permission of Text Section" << std::endl;
+			exit(0);
+		}
 	}
 	else {
 		std::cout << "[ERROR] Cannot Find NTDLL.dll" << std::endl;
 	}
+	int x;
+	std::cin >> x;
 	return 0;
 }
