@@ -21,7 +21,7 @@ void printBanner() {
 		"	888          d88' `88b  888  d88' `88b  d88' `88b d88' `88b `888\"\"8P `888P\"Y88b  \n"
 		"	888          888ooo888  888  888ooo888  888   888 888   888  888      888   888  \n"
 		"	 88b    ooo  888    .o  888  888    .o  888   888 888   888  888      888   888  \n"
-		"	 `Y8bood8P'  `Y8bod8P' o888o `Y8bod8P'  `Y8bod8P' `Y8bod8P' d888b    o888o o888o \n";
+		"	 `Y8bood8P'  `Y8bod8P' o888o `Y8bod8P'  `Y8bod8P' `Y8bod8P' d888b    o888o o888o \n"
 		"                                       by @R0h1rr1m                                    \n";
 	std::cout << banner << std::endl;
 }
