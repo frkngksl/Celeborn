@@ -24,3 +24,7 @@ I used different techniques from the following tools for both silence and learni
 - https://github.com/Mr-Un1k0d3r/EDRs
 - https://blog.malwarebytes.com/threat-analysis/2018/08/process-doppelganging-meets-process-hollowing_osiris/
 - https://github.com/am0nsec/HellsGate
+
+## Disclaimer
+
+For authorized security testing only. Misuse of this tool against systems without explicit permission is illegal.
